@@ -1,42 +1,104 @@
-1. Антипаттерн Синглтон
+<?php
 
-В вводном курсе PHP использовалась нижеследующая функция для получения соединения с базой данных.
-При вызове этой функции из разных контроллеров, получалось много соединений с одной и той же базой.
+class Application {
 
-function getDb()
-{
+    protected $connection;
+    protected $record;
+    protected $builder;
 
-    $db = @mysqli_connect(HOST, USER, PASS, DB) or die("Could not connect: " . mysqli_connect_error());
+    public function __construct(ServiceFactoryInterface $serviceFactory){
+        $this->connection = $serviceFactory->createConnection();
+        $this->record = $serviceFactory->createRecord();
+        $this->builder = $serviceFactory->createBuilder();
+    }
 
-    return $db;
 }
 
-Далее был использован следующий вариант, для контроля за количеством соединений,
-своего рода синглтон.
+interface ConnectionInterface {};
+interface RecordInterface {};
+interface BuilderInterface {};
 
-function getDb()
-{
-    static $db = null;
-        if (is_null($db)) {
-            $db = @mysqli_connect(HOST, USER, PASS, DB) or die("Could not connect: " . mysqli_connect_error());
-        }
-    return $db;
+class MySQLConnection implements ConnectionInterface {}
+class PostgreSQLConnection implements ConnectionInterface {}
+class OracleConnection implements ConnectionInterface {}
+
+class MySQLRecord implements RecordInterface {}
+class PostgreSQLRecord implements RecordInterface {}
+class OracleRecord implements RecordInterface {}
+
+class MySQLBuilder implements BuilderInterface {}
+class PostgreSQLBuilder implements BuilderInterface {}
+class OracleBuilder implements BuilderInterface {}
+
+interface ServiceFactoryInterface {
+
+    public function createConnection(): ConnectionInterface;
+    public function createRecord(): RecordInterface;
+    public function createBuilder(): BuilderInterface;
+
 }
 
 
-Следующим шагом было исользование специально созданного для этой цели трэйта TSingletone.php
-Он использовался в классе DbWithSingletone.php
+class MySQLServiceFactory implements ServiceFactoryInterface {
 
+    public function createConnection(): ConnectionInterface
+    {
+        return new MySQLConnection();
+    }
 
-2. Антипаттерн Coding by Exception
+    public function createRecord(): RecordInterface
+    {
+        return new MySQLRecord();
+    }
 
-В папке controllers практически во всех контроллерах в методах есть проверки на ошибки try/catch,
-можно было избежать этого просто добавив в файл index.php следующий код:
-
-try {
-    App::call()->run($config);
-} catch (PDOException $e) {
-    var_dump($e);
-} catch (Exception $e) {
-    echo $e->getMessage();
+    public function createBuilder(): BuilderInterface
+    {
+        return new MySQLBuilder();
+    }
 }
+
+class PostgreSQLServiceFactory implements ServiceFactoryInterface {
+
+    public function createConnection(): ConnectionInterface
+    {
+        return new PostgreSQLConnection();
+    }
+
+    public function createRecord(): RecordInterface
+    {
+        return new PostgreSQLRecord();
+    }
+
+    public function createBuilder(): BuilderInterface
+    {
+        return new PostgreSQLBuilder();
+    }
+}
+
+class OracleServiceFactory implements ServiceFactoryInterface {
+
+    public function createConnection(): ConnectionInterface
+    {
+        return new OracleConnection();
+    }
+
+    public function createRecord(): RecordInterface
+    {
+        return new OracleRecord();
+    }
+
+    public function createBuilder(): BuilderInterface
+    {
+        return new OracleBuilder();
+    }
+}
+
+$applicationMySQL = new Application(new MySQLServiceFactory());
+$applicationPostgreSQL = new Application(new PostgreSQLServiceFactory());
+$applicationOracle = new Application(new OracleServiceFactory());
+
+//var_dump($applicationMySQL);
+//echo '<br>';
+//var_dump($applicationPostgreSQL);
+//echo '<br>';
+//var_dump($applicationOracle);
