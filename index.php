@@ -1,104 +1,143 @@
 <?php
 
-class Application {
 
-    protected $connection;
-    protected $record;
-    protected $builder;
+//Реализовать на PHP пример Декоратора, позволяющий отправлять уведомления
+//несколькими различными способами.
 
-    public function __construct(ServiceFactoryInterface $serviceFactory){
-        $this->connection = $serviceFactory->createConnection();
-        $this->record = $serviceFactory->createRecord();
-        $this->builder = $serviceFactory->createBuilder();
-    }
 
+interface ISender
+{
+    public function sender(): string;
 }
 
-interface ConnectionInterface {};
-interface RecordInterface {};
-interface BuilderInterface {};
-
-class MySQLConnection implements ConnectionInterface {}
-class PostgreSQLConnection implements ConnectionInterface {}
-class OracleConnection implements ConnectionInterface {}
-
-class MySQLRecord implements RecordInterface {}
-class PostgreSQLRecord implements RecordInterface {}
-class OracleRecord implements RecordInterface {}
-
-class MySQLBuilder implements BuilderInterface {}
-class PostgreSQLBuilder implements BuilderInterface {}
-class OracleBuilder implements BuilderInterface {}
-
-interface ServiceFactoryInterface {
-
-    public function createConnection(): ConnectionInterface;
-    public function createRecord(): RecordInterface;
-    public function createBuilder(): BuilderInterface;
-
-}
-
-
-class MySQLServiceFactory implements ServiceFactoryInterface {
-
-    public function createConnection(): ConnectionInterface
+class NoSender implements ISender
+{
+    private $text;
+    public function __construct(string $text)
     {
-        return new MySQLConnection();
+        $this->text = $text;
     }
-
-    public function createRecord(): RecordInterface
+    public function sender(): string
     {
-        return new MySQLRecord();
-    }
-
-    public function createBuilder(): BuilderInterface
-    {
-        return new MySQLBuilder();
+        return $this->text;
     }
 }
 
-class PostgreSQLServiceFactory implements ServiceFactoryInterface {
-
-    public function createConnection(): ConnectionInterface
+abstract class Decorator implements ISender
+{
+    protected $content = null;
+    public function __construct(ISender $content)
     {
-        return new PostgreSQLConnection();
-    }
-
-    public function createRecord(): RecordInterface
-    {
-        return new PostgreSQLRecord();
-    }
-
-    public function createBuilder(): BuilderInterface
-    {
-        return new PostgreSQLBuilder();
+        $this->content = $content;
     }
 }
 
-class OracleServiceFactory implements ServiceFactoryInterface {
-
-    public function createConnection(): ConnectionInterface
+class SmsSender extends Decorator
+{
+    public function sender(): string
     {
-        return new OracleConnection();
-    }
-
-    public function createRecord(): RecordInterface
-    {
-        return new OracleRecord();
-    }
-
-    public function createBuilder(): BuilderInterface
-    {
-        return new OracleBuilder();
+        $sms = $this->content->sender();
+        return $sms;
     }
 }
 
-$applicationMySQL = new Application(new MySQLServiceFactory());
-$applicationPostgreSQL = new Application(new PostgreSQLServiceFactory());
-$applicationOracle = new Application(new OracleServiceFactory());
+class EmailSender extends Decorator
+{
+    public function sender(): string
+    {
+        $email = $this->content->sender();
+        return $email;
+    }
+}
 
-//var_dump($applicationMySQL);
-//echo '<br>';
-//var_dump($applicationPostgreSQL);
-//echo '<br>';
-//var_dump($applicationOracle);
+class CnSender extends Decorator
+{
+    public function sender(): string
+    {
+        $cn = $this->content->sender();
+        return $cn;
+    }
+}
+
+function testDecorator(string $text)
+{
+    $sender =
+        new CnSender(
+            new SmsSender(
+                new EmailSender(
+                    new NoSender($text)
+                )
+            )
+        );
+    $sender->sender();
+}
+
+testDecorator('Test text');
+
+
+//=====================================================================
+
+//  Реализовать паттерн Адаптер для связи внешней библиотеки (классы SquareAreaLib и
+//  CircleAreaLib) вычисления площади квадрата (getSquareArea) и площади круга
+//  (getCircleArea) с интерфейсами ISquare и ICircle имеющегося кода. Примеры классов даны
+//  ниже. Причём во внешней библиотеке используются для расчётов формулы нахождения через
+//  диагонали фигур, а в интерфейсах квадрата и круга — формулы, принимающие значения
+//  одной стороны и длины окружности соответственно.
+
+class SquareAreaLib
+{
+    public function getSquareArea(int $diagonal)
+    {
+        $area = ($diagonal**2)/2;
+        return $area;
+    }
+}
+class CircleAreaLib
+{
+    public function getCircleArea(int $diagonal)
+    {
+        $area = (M_PI * $diagonal**2)/4;
+        return $area;
+    }
+}
+
+interface ISquare
+{
+    function squareArea(int $sideSquare);
+}
+
+interface ICircle
+{
+    function circleArea(int $circumference);
+}
+
+class AreaAdaptor implements ICircle, ISquare
+{
+    protected $squareArea;
+    protected $circleArea;
+
+    function __construct()
+    {
+        $this->circleArea = new CircleAreaLib();
+        $this->squareArea = new SquareAreaLib();
+    }
+
+    function squareArea(int $sideSquare)
+    {
+        return $this->squareArea->getSquareArea(sqrt(2) * $sideSquare);
+    }
+
+    function circleArea(int $circumference)
+    {
+        return $this->circleArea->getCircleArea($circumference/M_PI);
+    }
+}
+
+$areaAdaptor = new AreaAdaptor();
+$squareArea = $areaAdaptor->squareArea(5);
+$circleArea = $areaAdaptor->circleArea(20);
+
+echo "Square area = " . $squareArea . '<br>';
+echo "Circle area = " . $circleArea;
+
+
